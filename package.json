@@ -2,13 +2,8 @@
   "name": "crm-backend",
   "version": "1.0.0",
   "main": "server.js",
- {
-  "name": "crm-backend",
-  "version": "1.0.0",
-  // "type": "module",  ← remove or comment this out
-  "main": "server.js",
-  ...
-}
+ 
+  
 
   "scripts": {
     "start": "node server.js"
