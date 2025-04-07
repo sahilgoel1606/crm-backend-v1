@@ -28,6 +28,7 @@ const createTable = async () => {
       phone TEXT,
       location TEXT,
       source TEXT,
+	owner TEXT,
       status TEXT NOT NULL DEFAULT 'New',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -46,10 +47,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       try {
         for (let row of results) {
           if (!row.name || !(row.email || row.phone)) continue;
-          await client.query(
-            'INSERT INTO leads (name, email, phone, location, source, status) VALUES ($1, $2, $3, $4, $5, $6)',
-            [row.name, row.email, row.phone, row.location, row.source, row.status || 'New']
-          );
+      await client.query(
+  'INSERT INTO leads (name, email, phone, location, source, status, owner) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+  [row.name, row.email, row.phone, row.location, row.source, row.status || 'New', row.owner || 'Unassigned']
+);
+
         }
         res.status(200).json({ message: 'Upload complete', count: results.length });
       } catch (err) {
@@ -63,9 +65,36 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // Get all leads
 app.get('/api/leads', async (req, res) => {
-  const result = await pool.query('SELECT * FROM leads ORDER BY created_at DESC');
+  const { owner, status, location, search } = req.query;
+  const values = [];
+  const conditions = [];
+
+  if (owner) {
+    conditions.push(`owner ILIKE $${values.length + 1}`);
+    values.push(`%${owner}%`);
+  }
+
+  if (status) {
+    conditions.push(`status = $${values.length + 1}`);
+    values.push(status);
+  }
+
+  if (location) {
+    conditions.push(`location ILIKE $${values.length + 1}`);
+    values.push(`%${location}%`);
+  }
+
+  if (search) {
+    conditions.push(`(name ILIKE $${values.length + 1} OR phone ILIKE $${values.length + 1})`);
+    values.push(`%${search}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const result = await pool.query(`SELECT * FROM leads ${whereClause} ORDER BY created_at DESC`, values);
+
   res.json(result.rows);
 });
+
 
 // Update lead status
 app.put('/api/leads/:id/status', async (req, res) => {
